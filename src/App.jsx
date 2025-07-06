@@ -1,3 +1,5 @@
+
+import { useState } from 'react';
 import './App.css';
 
 // --- Constants ---
@@ -8,8 +10,13 @@ const BOARD_HEIGHT = 4;
 
 // Tile Component: Represents a single square on the board
 function Tile({ rowIndex, colIndex }) {
+  // When a tile is clicked, log its coordinates to the browser console
+  const handleClick = () => {
+    console.log(`Tile clicked: (${rowIndex}, ${colIndex})`);
+  };
+
   return (
-    <div className="tile">
+    <div className="tile" onClick={handleClick}>
       ({rowIndex}, {colIndex})
     </div>
   );
@@ -26,14 +33,9 @@ function Board() {
   return <div className="board">{tiles}</div>;
 }
 
-// PlayerHUD Component: Displays player's stats
-function PlayerHUD() {
-  // These are placeholder values for now
+// PlayerHUD Component: Displays player's stats and actions
+function PlayerHUD({ turn, food, science, score, onNextTurn }) {
   const playerName = "Player 1";
-  const turn = 1;
-  const food = 10;
-  const science = 5;
-  const score = 0;
 
   return (
     <div className="player-hud">
@@ -43,6 +45,9 @@ function PlayerHUD() {
         <span>Science: {science}</span>
         <span>Score: {score}</span>
       </div>
+      <button onClick={onNextTurn} style={{ marginTop: '1rem' }}>
+        Next Turn
+      </button>
     </div>
   );
 }
@@ -51,10 +56,29 @@ function PlayerHUD() {
 // --- Main App Component ---
 
 function App() {
+  // Game State Management
+  const [turn, setTurn] = useState(1);
+  const [food, setFood] = useState(10);
+  const [science, setScience] = useState(5);
+  const [score, setScore] = useState(0);
+
+  // Function to handle the "Next Turn" button click
+  const handleNextTurn = () => {
+    setTurn(prevTurn => prevTurn + 1);
+    setFood(prevFood => prevFood + 5); // Gain 5 food per turn for now
+    // We can add more logic here later (e.g., science gain)
+  };
+
   return (
     <div className="game-container">
       <h1>Pact Prototype</h1>
-      <PlayerHUD />
+      <PlayerHUD 
+        turn={turn} 
+        food={food} 
+        science={science} 
+        score={score} 
+        onNextTurn={handleNextTurn}
+      />
       <Board />
     </div>
   );
