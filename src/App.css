@@ -54,3 +54,11 @@
 .tile:hover {
   background-color: #555;
 }
+
+/* Style for tiles that have a building on them */
+.tile.occupied {
+  background-color: #2a5a3e; /* A nice green for farms */
+  border-color: #6a994e;
+  font-weight: bold;
+  color: #f2e8cf;
+}
