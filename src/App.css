@@ -101,3 +101,40 @@
   color: white;
   box-shadow: 0 0 10px #646cff;
 }
+
+.tech-panel {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #8a6d3b;
+  border-radius: 8px;
+  background-color: #1a1a1a;
+}
+
+.tech-panel h3 {
+  margin-top: 0;
+  color: #f0ad4e;
+}
+
+.tech-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tech-panel li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.tech-panel li.researched {
+  color: #888;
+  text-decoration: line-through;
+}
+
+.tech-panel button {
+  margin-left: 1rem;
+  padding: 5px 10px;
+}

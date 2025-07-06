@@ -1,13 +1,21 @@
-import { useState } from 'react';
+
+import { useState, useMemo } from 'react';
 import './App.css';
 
-// --- Constants ---
-const BOARD_WIDTH = 7;
-const BOARD_HEIGHT = 4;
+// --- Data Structures ---
+const INITIAL_TECH_TREE = {
+  improved_farming: {
+    name: "Improved Farming",
+    description: "All Farms produce +1 Food per turn.",
+    cost: { Science: 20 },
+    researched: false,
+    effect: { type: 'BOOST_BUILDING', building: 'Farm', resource: 'Food', amount: 1 },
+  },
+};
 
 const BUILDINGS = {
-  Farm: { cost: { Food: 10 }, produces: { Food: 3 } },
-  Lab: { cost: { Food: 15 }, produces: { Science: 4 } },
+  Farm: { cost: { Food: 10 }, baseProduces: { Food: 3 } },
+  Lab: { cost: { Food: 15 }, baseProduces: { Science: 4 } },
 };
 
 const BASE_INCOME = { Food: 2, Science: 1 };
@@ -16,23 +24,20 @@ const BASE_INCOME = { Food: 2, Science: 1 };
 const createInitialBoard = () => 
   Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(null));
 
+// --- Constants ---
+const BOARD_WIDTH = 7;
+const BOARD_HEIGHT = 4;
+
 // --- Components ---
 
-function Tile({ rowIndex, colIndex, tileData, onTileClick }) {
+function Tile({ tileData, onTileClick }) {
   let content = "";
   let tileTypeClass = "";
   if (tileData) {
     content = tileData.type;
-    tileTypeClass = tileData.type.toLowerCase(); // farm or lab
+    tileTypeClass = tileData.type.toLowerCase();
   }
-
-  const tileClassName = `tile ${tileTypeClass}`;
-
-  return (
-    <div className={tileClassName} onClick={() => onTileClick(rowIndex, colIndex)}>
-      {content}
-    </div>
-  );
+  return <div className={`tile ${tileTypeClass}`} onClick={onTileClick}>{content}</div>;
 }
 
 function Board({ board, onTileClick }) {
@@ -42,10 +47,8 @@ function Board({ board, onTileClick }) {
         row.map((tileData, colIndex) => (
           <Tile
             key={`${rowIndex}-${colIndex}`}
-            rowIndex={rowIndex}
-            colIndex={colIndex}
             tileData={tileData}
-            onTileClick={onTileClick}
+            onTileClick={() => onTileClick(rowIndex, colIndex)}
           />
         ))
       )}
@@ -64,19 +67,42 @@ function PlayerHUD({ stats, onNextTurn, onSelectBuilding, selectedBuilding }) {
       </div>
       <div className="build-controls">
         <h4>Select Building:</h4>
-        {Object.keys(BUILDINGS).map(buildingType => (
+        {Object.keys(BUILDINGS).map(type => (
           <button 
-            key={buildingType}
-            className={`build-button ${selectedBuilding === buildingType ? 'selected' : ''}`}
-            onClick={() => onSelectBuilding(buildingType)}
+            key={type}
+            className={`build-button ${selectedBuilding === type ? 'selected' : ''}`}
+            onClick={() => onSelectBuilding(type)}
           >
-            {buildingType} (Cost: {BUILDINGS[buildingType].cost.Food} F)
+            {type} (Cost: {BUILDINGS[type].cost.Food} F)
           </button>
         ))}
       </div>
       <button onClick={onNextTurn} style={{ marginTop: '1rem' }}>
         End Turn
       </button>
+    </div>
+  );
+}
+
+function TechPanel({ techTree, science, onResearch }) {
+  return (
+    <div className="tech-panel">
+      <h3>Technology</h3>
+      <ul>
+        {Object.entries(techTree).map(([techId, tech]) => {
+          const canAfford = science >= tech.cost.Science;
+          return (
+            <li key={techId} className={tech.researched ? 'researched' : ''}>
+              <strong>{tech.name}</strong>: {tech.description} (Cost: {tech.cost.Science} S)
+              {!tech.researched && (
+                <button onClick={() => onResearch(techId)} disabled={!canAfford}>
+                  {canAfford ? 'Research' : 'No Funds'}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -90,32 +116,47 @@ function App() {
   const [score, setScore] = useState(0);
   const [board, setBoard] = useState(createInitialBoard());
   const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [techTree, setTechTree] = useState(INITIAL_TECH_TREE);
 
-  const handleSelectBuilding = (buildingType) => {
-    setSelectedBuilding(prev => prev === buildingType ? null : buildingType);
-  };
+  const buildingBonuses = useMemo(() => {
+    const bonuses = {};
+    for (const tech of Object.values(techTree)) {
+      if (tech.researched && tech.effect.type === 'BOOST_BUILDING') {
+        const { building, resource, amount } = tech.effect;
+        if (!bonuses[building]) bonuses[building] = {};
+        if (!bonuses[building][resource]) bonuses[building][resource] = 0;
+        bonuses[building][resource] += amount;
+      }
+    }
+    return bonuses;
+  }, [techTree]);
+
+  const handleSelectBuilding = (type) => setSelectedBuilding(prev => prev === type ? null : type);
 
   const handleTileClick = (rowIndex, colIndex) => {
-    if (!selectedBuilding) {
-      console.log("Please select a building first.");
-      return;
-    }
-    if (board[rowIndex][colIndex]) {
-      console.log("Tile is already occupied!");
-      return;
-    }
+    if (!selectedBuilding || board[rowIndex][colIndex]) return;
 
     const buildingInfo = BUILDINGS[selectedBuilding];
     if (food < buildingInfo.cost.Food) {
-      alert(`Not enough food! A ${selectedBuilding} costs ${buildingInfo.cost.Food}.`);
+      alert(`Not enough food!`);
       return;
     }
 
-    setFood(prevFood => prevFood - buildingInfo.cost.Food);
-
-    const newBoard = board.map(row => [...row]);
+    setFood(f => f - buildingInfo.cost.Food);
+    const newBoard = board.map(r => [...r]);
     newBoard[rowIndex][colIndex] = { type: selectedBuilding };
     setBoard(newBoard);
+  };
+
+  const handleResearch = (techId) => {
+    const tech = techTree[techId];
+    if (!tech || tech.researched || science < tech.cost.Science) return;
+
+    setScience(s => s - tech.cost.Science);
+    setTechTree(prevTree => ({
+      ...prevTree,
+      [techId]: { ...prevTree[techId], researched: true },
+    }));
   };
 
   const handleNextTurn = () => {
@@ -124,29 +165,28 @@ function App() {
 
     board.forEach(row => {
       row.forEach(tile => {
-        if (tile) {
-          const buildingProduces = BUILDINGS[tile.type].produces;
-          foodIncome += buildingProduces.Food || 0;
-          scienceIncome += buildingProduces.Science || 0;
-        }
+        if (!tile) return;
+        const building = BUILDINGS[tile.type];
+        const bonus = buildingBonuses[tile.type] || {};
+        foodIncome += (building.baseProduces.Food || 0) + (bonus.Food || 0);
+        scienceIncome += (building.baseProduces.Science || 0) + (bonus.Science || 0);
       });
     });
 
-    setTurn(prevTurn => prevTurn + 1);
-    setFood(prevFood => prevFood + foodIncome);
-    setScience(prevScience => prevScience + scienceIncome);
-    console.log(`Turn ended. Food income: ${foodIncome}, Science income: ${scienceIncome}`);
+    setTurn(t => t + 1);
+    setFood(f => f + foodIncome);
+    setScience(s => s + scienceIncome);
   };
 
   return (
     <div className="game-container">
-      <h1>Pact Prototype</h1>
       <PlayerHUD 
         stats={{ turn, food, science, score }}
         onNextTurn={handleNextTurn}
         onSelectBuilding={handleSelectBuilding}
         selectedBuilding={selectedBuilding}
       />
+      <TechPanel techTree={techTree} science={science} onResearch={handleResearch} />
       <Board board={board} onTileClick={handleTileClick} />
     </div>
   );
