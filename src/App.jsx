@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from 'react';
 import './App.css';
 
@@ -15,17 +16,23 @@ const createInitialTechTree = () => ({
 const BUILDINGS = {
   Farm: { cost: { Food: 10 }, baseProduces: { Food: 3 } },
   Lab: { cost: { Food: 15 }, baseProduces: { Science: 4 } },
+  Barracks: { cost: { Food: 20 }, baseProduces: {} },
+};
+
+const UNITS = {
+  Warrior: { cost: { Food: 15 } },
 };
 
 const BASE_INCOME = { Food: 2, Science: 1 };
 
 const createInitialPlayerState = () => ({
-  food: 30,
+  food: 40,
   science: 10,
   score: 0,
   board: createInitialBoard(),
   techTree: createInitialTechTree(),
-  isReady: false, // Player's ready status for the next turn
+  units: { Warrior: 0 },
+  isReady: false,
 });
 
 // --- Helper Functions ---
@@ -60,7 +67,24 @@ function Board({ board, onTileClick }) {
   );
 }
 
-function PlayerInterface({ player, playerName, onReady, onSelectBuilding, selectedBuilding, onTileClick, onResearch }) {
+function MilitaryPanel({ player, onTrainUnit }) {
+  const hasBarracks = player.board.flat().some(tile => tile?.type === 'Barracks');
+  const canTrainWarrior = hasBarracks && player.food >= UNITS.Warrior.cost.Food;
+
+  return (
+    <div className="military-panel">
+      <h4>Military</h4>
+      <div className="unit-display">
+        <span>Warriors: {player.units.Warrior}</span>
+        <button onClick={() => onTrainUnit('Warrior')} disabled={!canTrainWarrior}>
+          Train ({UNITS.Warrior.cost.Food}F)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlayerInterface({ player, playerName, onReady, onSelectBuilding, selectedBuilding, onTileClick, onResearch, onTrainUnit }) {
   return (
     <div className="player-interface">
       <div className="player-hud">
@@ -85,6 +109,7 @@ function PlayerInterface({ player, playerName, onReady, onSelectBuilding, select
           {player.isReady ? 'Waiting...' : 'Ready'}
         </button>
       </div>
+      <MilitaryPanel player={player} onTrainUnit={onTrainUnit} />
       <div className="tech-panel">
         <ul>
           {Object.entries(player.techTree).map(([techId, tech]) => {
@@ -112,6 +137,14 @@ function App() {
   const [players, setPlayers] = useState(() => Array(NUM_PLAYERS).fill(null).map(() => createInitialPlayerState()));
   const [selectedBuildings, setSelectedBuildings] = useState(Array(NUM_PLAYERS).fill(null));
 
+  const updatePlayerState = (playerIndex, updates) => {
+    setPlayers(prev => {
+      const newPlayers = [...prev];
+      newPlayers[playerIndex] = { ...newPlayers[playerIndex], ...updates };
+      return newPlayers;
+    });
+  };
+
   const handleSelectBuilding = (playerIndex, buildingType) => {
     setSelectedBuildings(prev => {
       const newSelection = [...prev];
@@ -133,14 +166,13 @@ function App() {
       return;
     }
 
-    const newPlayers = [...players];
-    const newPlayer = { ...newPlayers[playerIndex] };
-    newPlayer.food -= buildingInfo.cost.Food;
-    const newBoard = newPlayer.board.map(r => [...r]);
+    const newBoard = player.board.map(r => [...r]);
     newBoard[rowIndex][colIndex] = { type: selectedBuilding };
-    newPlayer.board = newBoard;
-    newPlayers[playerIndex] = newPlayer;
-    setPlayers(newPlayers);
+    
+    updatePlayerState(playerIndex, {
+      food: player.food - buildingInfo.cost.Food,
+      board: newBoard,
+    });
   };
 
   const handleResearch = (playerIndex, techId) => {
@@ -148,13 +180,32 @@ function App() {
     const tech = player.techTree[techId];
     if (!tech || tech.researched || player.science < tech.cost.Science) return;
 
-    const newPlayers = [...players];
-    const newPlayer = { ...newPlayers[playerIndex] };
-    newPlayer.science -= tech.cost.Science;
-    const newTechTree = { ...newPlayer.techTree, [techId]: { ...tech, researched: true } };
-    newPlayer.techTree = newTechTree;
-    newPlayers[playerIndex] = newPlayer;
-    setPlayers(newPlayers);
+    const newTechTree = { ...player.techTree, [techId]: { ...tech, researched: true } };
+    updatePlayerState(playerIndex, {
+      science: player.science - tech.cost.Science,
+      techTree: newTechTree,
+    });
+  };
+
+  const handleTrainUnit = (playerIndex, unitType) => {
+    const player = players[playerIndex];
+    const unitInfo = UNITS[unitType];
+    const hasPrereq = player.board.flat().some(tile => tile?.type === 'Barracks');
+
+    if (!hasPrereq) {
+      alert("You need to build a Barracks first!");
+      return;
+    }
+    if (player.food < unitInfo.cost.Food) {
+      alert("Not enough food to train a Warrior!");
+      return;
+    }
+
+    const newUnits = { ...player.units, [unitType]: player.units[unitType] + 1 };
+    updatePlayerState(playerIndex, {
+      food: player.food - unitInfo.cost.Food,
+      units: newUnits,
+    });
   };
 
   const handleReady = (playerIndex) => {
@@ -162,7 +213,6 @@ function App() {
     newPlayers[playerIndex].isReady = !newPlayers[playerIndex].isReady;
     setPlayers(newPlayers);
 
-    // Check if all players are ready
     if (newPlayers.every(p => p.isReady)) {
       processTurn();
     }
@@ -171,16 +221,15 @@ function App() {
   const processTurn = () => {
     console.log("--- Processing Turn", turn, "---");
     let newPlayers = players.map(player => {
-      const buildingBonuses = {}; // Simplified for now
       let foodIncome = BASE_INCOME.Food;
       let scienceIncome = BASE_INCOME.Science;
 
       player.board.forEach(row => {
         row.forEach(tile => {
           if (!tile) return;
-          const building = BUILDINGS[tile.type];
-          foodIncome += building.baseProduces.Food || 0;
-          scienceIncome += building.baseProduces.Science || 0;
+          const buildingProduces = BUILDINGS[tile.type].baseProduces;
+          foodIncome += buildingProduces.Food || 0;
+          scienceIncome += buildingProduces.Science || 0;
         });
       });
 
@@ -188,7 +237,7 @@ function App() {
         ...player,
         food: player.food + foodIncome,
         science: player.science + scienceIncome,
-        isReady: false, // Reset for next turn
+        isReady: false,
       };
     });
 
@@ -211,6 +260,7 @@ function App() {
             selectedBuilding={selectedBuildings[index]}
             onTileClick={(r, c) => handleTileClick(index, r, c)}
             onResearch={(techId) => handleResearch(index, techId)}
+            onTrainUnit={(unitType) => handleTrainUnit(index, unitType)}
           />
         ))}
       </div>

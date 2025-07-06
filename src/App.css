@@ -92,11 +92,44 @@
   border-color: #4a90e2;
 }
 
+.tile.barracks {
+  background-color: #6c3428;
+  border-color: #b06161;
+}
+
 .build-controls {
   display: flex;
   justify-content: center;
   gap: 10px;
   margin-bottom: 1rem;
+}
+
+.military-panel {
+  padding: 0.5rem;
+  border: 1px solid #b06161;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.military-panel h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.unit-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.unit-display span {
+  font-weight: bold;
+}
+
+.unit-display button {
+  padding: 2px 6px;
+  font-size: 0.8rem;
 }
 
 .build-button {
