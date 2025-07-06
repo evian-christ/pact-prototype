@@ -1,10 +1,13 @@
+
 import { useState } from 'react';
 import './App.css';
 
 // --- Constants ---
 const BOARD_WIDTH = 7;
 const BOARD_HEIGHT = 4;
-const FARM_COST = 10; // The cost to build a farm
+const FARM_COST = 10;
+const BASE_FOOD_INCOME = 2;
+const FARM_FOOD_PRODUCTION = 3;
 
 // --- Helper Functions ---
 // Creates an empty board model
@@ -15,13 +18,11 @@ const createInitialBoard = () =>
 
 // Tile Component: Represents a single square on the board
 function Tile({ rowIndex, colIndex, tileData, onTileClick }) {
-  // The content to display inside the tile
   let content = `(${rowIndex}, ${colIndex})`;
   if (tileData) {
-    content = tileData.type; // e.g., "Farm"
+    content = tileData.type;
   }
 
-  // Add a specific class if the tile is occupied by a building
   const tileClassName = `tile ${tileData ? 'occupied' : ''}`;
 
   return (
@@ -75,41 +76,46 @@ function PlayerHUD({ turn, food, science, score, onNextTurn }) {
 function App() {
   // Game State Management
   const [turn, setTurn] = useState(1);
-  const [food, setFood] = useState(25); // Start with more food
+  const [food, setFood] = useState(25);
   const [science, setScience] = useState(5);
   const [score, setScore] = useState(0);
   const [board, setBoard] = useState(createInitialBoard());
 
   // Function to handle tile clicks for building
   const handleTileClick = (rowIndex, colIndex) => {
-    // Check if the tile is already occupied
     if (board[rowIndex][colIndex]) {
       console.log("Tile is already occupied!");
-      return; // Exit if building already exists
+      return;
     }
 
-    // Check if the player has enough food
     if (food < FARM_COST) {
       alert(`Not enough food! A farm costs ${FARM_COST}.`);
-      return; // Exit if not enough resources
+      return;
     }
 
-    // All checks passed, proceed with building
-    console.log(`Building a Farm at (${rowIndex}, ${colIndex})`);
-
-    // 1. Deduct the cost
     setFood(prevFood => prevFood - FARM_COST);
 
-    // 2. Update the board state (important: create a new copy)
-    const newBoard = board.map(row => [...row]); // Deep copy
+    const newBoard = board.map(row => [...row]);
     newBoard[rowIndex][colIndex] = { type: 'Farm' };
     setBoard(newBoard);
   };
 
   // Function to handle the "Next Turn" button click
   const handleNextTurn = () => {
+    // 1. Calculate income from buildings
+    let foodFromFarms = 0;
+    board.forEach(row => {
+      row.forEach(tile => {
+        if (tile?.type === 'Farm') {
+          foodFromFarms += FARM_FOOD_PRODUCTION;
+        }
+      });
+    });
+
+    // 2. Update state for the new turn
     setTurn(prevTurn => prevTurn + 1);
-    setFood(prevFood => prevFood + 5); // Base food income
+    setFood(prevFood => prevFood + BASE_FOOD_INCOME + foodFromFarms);
+    console.log(`Turn ended. Base income: ${BASE_FOOD_INCOME}, Farm income: ${foodFromFarms}`);
   };
 
   return (
