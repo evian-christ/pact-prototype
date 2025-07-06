@@ -1,35 +1,63 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+// --- Constants ---
+const BOARD_WIDTH = 7;
+const BOARD_HEIGHT = 4;
 
+// --- Components ---
+
+// Tile Component: Represents a single square on the board
+function Tile({ rowIndex, colIndex }) {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="tile">
+      ({rowIndex}, {colIndex})
+    </div>
+  );
 }
 
-export default App
+// Board Component: The 7x4 grid
+function Board() {
+  const tiles = [];
+  for (let i = 0; i < BOARD_HEIGHT; i++) {
+    for (let j = 0; j < BOARD_WIDTH; j++) {
+      tiles.push(<Tile key={`${i}-${j}`} rowIndex={i} colIndex={j} />);
+    }
+  }
+  return <div className="board">{tiles}</div>;
+}
+
+// PlayerHUD Component: Displays player's stats
+function PlayerHUD() {
+  // These are placeholder values for now
+  const playerName = "Player 1";
+  const turn = 1;
+  const food = 10;
+  const science = 5;
+  const score = 0;
+
+  return (
+    <div className="player-hud">
+      <h2>{playerName} (Turn: {turn})</h2>
+      <div className="stats">
+        <span>Food: {food}</span>
+        <span>Science: {science}</span>
+        <span>Score: {score}</span>
+      </div>
+    </div>
+  );
+}
+
+
+// --- Main App Component ---
+
+function App() {
+  return (
+    <div className="game-container">
+      <h1>Pact Prototype</h1>
+      <PlayerHUD />
+      <Board />
+    </div>
+  );
+}
+
+export default App;
