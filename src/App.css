@@ -56,9 +56,48 @@
 }
 
 /* Style for tiles that have a building on them */
-.tile.occupied {
+.tile.farm {
   background-color: #2a5a3e; /* A nice green for farms */
   border-color: #6a994e;
   font-weight: bold;
   color: #f2e8cf;
+}
+
+.tile.lab {
+  background-color: #1d3b53; /* A cool blue for labs */
+  border-color: #4a90e2;
+  font-weight: bold;
+  color: #e0e0e0;
+}
+
+.build-controls {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #444;
+}
+
+.build-controls h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.build-button {
+  margin: 0 5px;
+  padding: 8px 12px;
+  border: 1px solid #646cff;
+  background-color: transparent;
+  color: #646cff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.build-button:hover {
+  background-color: #646cff;
+  color: white;
+}
+
+.build-button.selected {
+  background-color: #646cff;
+  color: white;
+  box-shadow: 0 0 10px #646cff;
 }

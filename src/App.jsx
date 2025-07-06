@@ -1,29 +1,32 @@
-
 import { useState } from 'react';
 import './App.css';
 
 // --- Constants ---
 const BOARD_WIDTH = 7;
 const BOARD_HEIGHT = 4;
-const FARM_COST = 10;
-const BASE_FOOD_INCOME = 2;
-const FARM_FOOD_PRODUCTION = 3;
+
+const BUILDINGS = {
+  Farm: { cost: { Food: 10 }, produces: { Food: 3 } },
+  Lab: { cost: { Food: 15 }, produces: { Science: 4 } },
+};
+
+const BASE_INCOME = { Food: 2, Science: 1 };
 
 // --- Helper Functions ---
-// Creates an empty board model
 const createInitialBoard = () => 
   Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(null));
 
 // --- Components ---
 
-// Tile Component: Represents a single square on the board
 function Tile({ rowIndex, colIndex, tileData, onTileClick }) {
-  let content = `(${rowIndex}, ${colIndex})`;
+  let content = "";
+  let tileTypeClass = "";
   if (tileData) {
     content = tileData.type;
+    tileTypeClass = tileData.type.toLowerCase(); // farm or lab
   }
 
-  const tileClassName = `tile ${tileData ? 'occupied' : ''}`;
+  const tileClassName = `tile ${tileTypeClass}`;
 
   return (
     <div className={tileClassName} onClick={() => onTileClick(rowIndex, colIndex)}>
@@ -32,7 +35,6 @@ function Tile({ rowIndex, colIndex, tileData, onTileClick }) {
   );
 }
 
-// Board Component: The 7x4 grid
 function Board({ board, onTileClick }) {
   return (
     <div className="board">
@@ -51,82 +53,99 @@ function Board({ board, onTileClick }) {
   );
 }
 
-// PlayerHUD Component: Displays player's stats and actions
-function PlayerHUD({ turn, food, science, score, onNextTurn }) {
-  const playerName = "Player 1";
-
+function PlayerHUD({ stats, onNextTurn, onSelectBuilding, selectedBuilding }) {
   return (
     <div className="player-hud">
-      <h2>{playerName} (Turn: {turn})</h2>
+      <h2>Player 1 (Turn: {stats.turn})</h2>
       <div className="stats">
-        <span>Food: {food}</span>
-        <span>Science: {science}</span>
-        <span>Score: {score}</span>
+        <span>Food: {stats.food}</span>
+        <span>Science: {stats.science}</span>
+        <span>Score: {stats.score}</span>
+      </div>
+      <div className="build-controls">
+        <h4>Select Building:</h4>
+        {Object.keys(BUILDINGS).map(buildingType => (
+          <button 
+            key={buildingType}
+            className={`build-button ${selectedBuilding === buildingType ? 'selected' : ''}`}
+            onClick={() => onSelectBuilding(buildingType)}
+          >
+            {buildingType} (Cost: {BUILDINGS[buildingType].cost.Food} F)
+          </button>
+        ))}
       </div>
       <button onClick={onNextTurn} style={{ marginTop: '1rem' }}>
-        Next Turn
+        End Turn
       </button>
     </div>
   );
 }
 
-
 // --- Main App Component ---
 
 function App() {
-  // Game State Management
   const [turn, setTurn] = useState(1);
-  const [food, setFood] = useState(25);
-  const [science, setScience] = useState(5);
+  const [food, setFood] = useState(30);
+  const [science, setScience] = useState(10);
   const [score, setScore] = useState(0);
   const [board, setBoard] = useState(createInitialBoard());
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
 
-  // Function to handle tile clicks for building
+  const handleSelectBuilding = (buildingType) => {
+    setSelectedBuilding(prev => prev === buildingType ? null : buildingType);
+  };
+
   const handleTileClick = (rowIndex, colIndex) => {
+    if (!selectedBuilding) {
+      console.log("Please select a building first.");
+      return;
+    }
     if (board[rowIndex][colIndex]) {
       console.log("Tile is already occupied!");
       return;
     }
 
-    if (food < FARM_COST) {
-      alert(`Not enough food! A farm costs ${FARM_COST}.`);
+    const buildingInfo = BUILDINGS[selectedBuilding];
+    if (food < buildingInfo.cost.Food) {
+      alert(`Not enough food! A ${selectedBuilding} costs ${buildingInfo.cost.Food}.`);
       return;
     }
 
-    setFood(prevFood => prevFood - FARM_COST);
+    setFood(prevFood => prevFood - buildingInfo.cost.Food);
 
     const newBoard = board.map(row => [...row]);
-    newBoard[rowIndex][colIndex] = { type: 'Farm' };
+    newBoard[rowIndex][colIndex] = { type: selectedBuilding };
     setBoard(newBoard);
   };
 
-  // Function to handle the "Next Turn" button click
   const handleNextTurn = () => {
-    // 1. Calculate income from buildings
-    let foodFromFarms = 0;
+    let foodIncome = BASE_INCOME.Food;
+    let scienceIncome = BASE_INCOME.Science;
+
     board.forEach(row => {
       row.forEach(tile => {
-        if (tile?.type === 'Farm') {
-          foodFromFarms += FARM_FOOD_PRODUCTION;
+        if (tile) {
+          const buildingProduces = BUILDINGS[tile.type].produces;
+          foodIncome += buildingProduces.Food || 0;
+          scienceIncome += buildingProduces.Science || 0;
         }
       });
     });
 
-    // 2. Update state for the new turn
     setTurn(prevTurn => prevTurn + 1);
-    setFood(prevFood => prevFood + BASE_FOOD_INCOME + foodFromFarms);
-    console.log(`Turn ended. Base income: ${BASE_FOOD_INCOME}, Farm income: ${foodFromFarms}`);
+    setFood(prevFood => prevFood + foodIncome);
+    setScience(prevScience => prevScience + scienceIncome);
+    console.log(`Turn ended. Food income: ${foodIncome}, Science income: ${scienceIncome}`);
   };
 
   return (
     <div className="game-container">
       <h1>Pact Prototype</h1>
       <PlayerHUD 
-        turn={turn} 
-        food={food} 
-        science={science} 
-        score={score} 
+        stats={{ turn, food, science, score }}
         onNextTurn={handleNextTurn}
+        onSelectBuilding={handleSelectBuilding}
+        selectedBuilding={selectedBuilding}
       />
       <Board board={board} onTileClick={handleTileClick} />
     </div>
